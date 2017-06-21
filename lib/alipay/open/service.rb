@@ -71,6 +71,38 @@ CmZYI/FCEa3/cNMW0QIDAQAB
         uri.to_s
       end
 
+      ALIPAY_TRADE_PAGE_PAY_REQUIRED_PARAMS = %w( subject out_trade_no total_amount product_code )
+      def self.alipay_trade_page_pay_url(params, options = {})
+        params = Utils.stringify_keys(params)
+        Alipay::Service.check_required_params(params, ALIPAY_TRADE_PAGE_PAY_REQUIRED_PARAMS)
+
+        app_id = options[:app_id] || Alipay.app_id
+        key = options[:key] || Alipay.key
+        sign_type = (options[:sign_type] || :rsa2).to_s.upcase
+
+        real_params = {
+          "app_id"         => app_id,
+          'method'         => 'alipay.trade.page.pay',
+          'charset'        => 'utf-8',
+          'version'        => '1.0',
+          'timestamp'      => Time.now.utc.strftime('%Y-%m-%d %H:%M:%S').to_s,
+          'sign_type'      => sign_type
+        }
+
+        real_params["return_url"] = params["return_url"] unless params["return_url"].nil?
+        real_params["notify_url"] = params["notify_url"] unless params["notify_url"].nil?
+        params.delete('return_url')
+        params.delete('notify_url')
+        real_params["biz_content"] = params.to_json
+
+        signed_params = real_params.merge("sign" => get_sign_by_type(real_params, key, sign_type))
+
+        uri = URI(::Alipay::Open::Service::OPEN_GATEWAY_URL)
+        uri.query = URI.encode_www_form(signed_params)
+
+        uri.to_s
+      end
+
       def self.get_sign_by_type(params, key, sign_type)
         string = Alipay::App::Sign.params_to_sorted_string(params)
         case sign_type
